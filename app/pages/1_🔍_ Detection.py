@@ -1,46 +1,62 @@
 import streamlit as st
-import requests
 from io import BytesIO
+from PIL import Image
+import os
 
-# URL FastAPI сервера
-API_IMAGE_URL = "http://127.0.0.1:8000/upload_image/"
-API_VIDEO_URL = "http://127.0.0.1:8000/upload_video/"
+# Создаем директории для сохранения файлов, если они не существуют
+IMAGE_SAVE_DIR = 'saved_images'
+VIDEO_SAVE_DIR = 'saved_videos'
+
+os.makedirs(IMAGE_SAVE_DIR, exist_ok=True)
+os.makedirs(VIDEO_SAVE_DIR, exist_ok=True)
 
 st.write("# Обнаружение воздушных объектов с помощью анализа видеоинформации")
 
+# Функция для обработки изображения (пока пустая)
+def process_image(image_path: str):
+    # Здесь будет логика обработки изображения
+    pass
+
+# Функция для обработки видео (пока пустая)
+def process_video(video_path: str):
+    # Здесь будет логика обработки видео
+    pass
+
 # Загрузка медиафайла
-media_file = st.file_uploader("Загрузите фото или видео для обнаружения объектов",
+media_file = st.file_uploader("Загрузите фото или видео для обнаружения объектов, видео только в формате mp4",
                               type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
 
 if media_file is not None:
     # Проверка типа файла
     if media_file.type.startswith("image"):
-        # Показ изображения
-        st.image(media_file, caption="Uploaded Image", use_column_width=True)
+        # Открываем изображение с помощью PIL
+        image = Image.open(media_file)
 
-        # Отправка изображения на FastAPI для обработки
-        files = {"file": media_file}
-        response = requests.post(API_IMAGE_URL, files=files)
+        # Конвертируем изображение в формат JPG
+        img_io = BytesIO()
+        image = image.convert("RGB")  # Преобразуем изображение в RGB
+        image.save(img_io, format='JPEG')
+        img_io.seek(0)
 
-        # Обработка ответа
-        if response.status_code == 200:
-            # Если обработка успешна, показываем результат
-            processed_image = BytesIO(response.content)
-            st.image(processed_image, caption="Processed Image", use_column_width=True)
-        else:
-            st.error(f"Error processing image. Status code: {response.status_code}")
+        # Сохранение изображения в папку
+        image_filename = os.path.join(IMAGE_SAVE_DIR, f"{media_file.name.split('.')[0]}.jpg")
+        with open(image_filename, 'wb') as out_file:
+            out_file.write(img_io.getbuffer())
+
+        # Вызываем функцию обработки изображения
+        process_image(image_filename)
+
+        # Показ загруженного изображения на странице
+        st.image(image, caption="Загруженное изображение и сохраненное как JPG", use_column_width=True)
 
     elif media_file.type.startswith("video"):
-        # Показ видео
+        # Сохранение видео в папку
+        video_filename = os.path.join(VIDEO_SAVE_DIR, media_file.name)
+        with open(video_filename, 'wb') as out_file:
+            out_file.write(media_file.read())
+
+        # Вызываем функцию обработки видео
+        process_video(video_filename)
+
+        # Показ видео на странице
         st.video(media_file)
-
-        # Отправка видео на FastAPI для обработки
-        files = {"file": media_file}
-        response = requests.post(API_VIDEO_URL, files=files)
-
-        # Обработка ответа
-        if response.status_code == 200:
-            result = response.json()
-            st.success(f"Video processed! {result['frames']} frames processed.")
-        else:
-            st.error(f"Error processing video. Status code: {response.status_code}")
